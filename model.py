@@ -114,15 +114,16 @@ class Seq2Seq(nn.Module):
         hidden, cell = self.encoder(src)
         
         #first input to the decoder is the <sos> tokens
-        input = src[:,-1,:]
+        input = src[:,-1,-1:]
         # input = torch.zeros((batch_size, 1, output_size)).to(self.device)
-        input = input.unsqueeze(2)
+        input = input.unsqueeze(1)
+        input_shape = input.shape
         
         for t in range(0, trg_len):
             
             #insert input token embedding, previous hidden and previous cell states
             #receive output tensor (predictions) and new hidden and cell states
-            input = input.reshape((len(input), 1, 1))
+            input = input.reshape(input_shape)
             output, hidden, cell = self.decoder(input, hidden, cell)
 
             #place predictions in a tensor holding predictions for each token

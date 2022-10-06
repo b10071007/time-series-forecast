@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import time
 import torch
@@ -7,7 +8,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from model import Encoder, Decoder, Seq2Seq, init_weights
-from data import TimeSeriesDataset, prepare_cycle_data
+from data import TimeSeriesDatasetMultiVariate, prepare_cycle_data_with_feature
 
 def train(model, data_loader, optimizer, criterion, clip, device):
     
@@ -92,24 +93,20 @@ def main():
     root_dir = "."
     data_type = "fake" # "tw_stock" or "fake"
     data_dir = os.path.join(root_dir, "dataset", data_type)
-    if data_type == "tw_stock":
-        data_path = os.path.join(data_dir, "0050_cycle_ma3.csv")
-    elif data_type == "fake":
-        data_path = os.path.join(data_dir, "fake_cycle_ma3.csv")
+    data_path = os.path.join(data_dir, f"{data_type}_cycle_ma3_with_feature.npy")
         
     num_input=2
     num_output=2
     train_ratio=0.7
     
-    print("Training data: ", data_path)
-    data = pd.read_csv(data_path)
-    train_x, train_y, val_x, val_y = prepare_cycle_data(data, num_input, num_output, train_ratio)
+    data = np.load(data_path)
+    train_x, train_y, val_x, val_y = prepare_cycle_data_with_feature(data, num_input, num_output, train_ratio)
     
-    INPUT_DIM = 1
+    INPUT_DIM = 2
     OUTPUT_DIM = 1
-    ENC_EMB_DIM = 8
-    DEC_EMB_DIM = 8
-    HID_DIM = 16
+    ENC_EMB_DIM = 16
+    DEC_EMB_DIM = 16
+    HID_DIM = 32
     N_LAYERS = 2
     ENC_DROPOUT = 0.5
     DEC_DROPOUT = 0.5
@@ -117,10 +114,10 @@ def main():
     N_EPOCHS = 200
     CLIP = 1
     batch_size = 8
-    lr=0.02
+    lr=0.001
 
-    train_dataset = TimeSeriesDataset(train_x, train_y)
-    val_dataset = TimeSeriesDataset(val_x, val_y)
+    train_dataset = TimeSeriesDatasetMultiVariate(train_x, train_y)
+    val_dataset = TimeSeriesDatasetMultiVariate(val_x, val_y)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -153,11 +150,11 @@ def main():
         if valid_loss <= best_valid_loss:
             best_ep = epoch
             best_valid_loss = valid_loss
-            torch.save(model.state_dict(), 'best_model.pt')
+            torch.save(model.state_dict(), 'best_model_multivariate.pt')
         
         print(f'Epoch: [{epoch+1}/{N_EPOCHS}] | train loss: {train_loss:.4f} | val loss: {valid_loss:.4f}')
 
-    torch.save(model.state_dict(), 'last_model.pt')
+    torch.save(model.state_dict(), 'last_model_multivariate.pt')
     print(f"Best model: ep={best_ep}, val loss={best_valid_loss:.4f}")
 
 
