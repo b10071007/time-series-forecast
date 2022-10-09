@@ -94,35 +94,38 @@ def main():
     data_type = "fake" # "tw_stock" or "fake"
     data_dir = os.path.join(root_dir, "dataset", data_type)
     data_path = os.path.join(data_dir, f"{data_type}_cycle_ma3_with_feature.npy")
+    exp_dir = os.path.join(root_dir, "exp", data_type, "multivariate_20221009")
         
+    # data setting
     num_input=2
     num_output=2
     train_ratio=0.7
     
-    data = np.load(data_path)
-    train_x, train_y, val_x, val_y = prepare_cycle_data_with_feature(data, num_input, num_output, train_ratio)
-    
+    # model settting
     INPUT_DIM = 2
     OUTPUT_DIM = 1
-    ENC_EMB_DIM = 16
-    DEC_EMB_DIM = 16
-    HID_DIM = 32
+    ENC_EMB_DIM = 32
+    DEC_EMB_DIM = 32
+    HID_DIM = 64
     N_LAYERS = 2
     ENC_DROPOUT = 0.5
     DEC_DROPOUT = 0.5
 
+    # hyper-parameter
     N_EPOCHS = 200
     CLIP = 1
     batch_size = 8
-    lr=0.001
+    lr=0.01
 
+    data = np.load(data_path)
+    train_x, train_y, val_x, val_y = prepare_cycle_data_with_feature(data, num_input, num_output, train_ratio)
+    
     train_dataset = TimeSeriesDatasetMultiVariate(train_x, train_y)
     val_dataset = TimeSeriesDatasetMultiVariate(val_x, val_y)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
-
     enc = Encoder(INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT)
     dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT)
 
@@ -131,10 +134,12 @@ def main():
     init_weights(model)
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=N_EPOCHS, eta_min=1e-5)
     criterion = nn.MSELoss()
 
     best_ep = 0
     best_valid_loss = float('inf')
+    os.makedirs(exp_dir, exist_ok=True)
 
     for epoch in range(N_EPOCHS):
         
@@ -150,11 +155,16 @@ def main():
         if valid_loss <= best_valid_loss:
             best_ep = epoch
             best_valid_loss = valid_loss
-            torch.save(model.state_dict(), 'best_model_multivariate.pt')
+            model_path = os.path.join(exp_dir, 'best_model_multivariate.pt')
+            torch.save(model.state_dict(), model_path)
         
-        print(f'Epoch: [{epoch+1}/{N_EPOCHS}] | train loss: {train_loss:.4f} | val loss: {valid_loss:.4f}')
+        current_lr = scheduler.get_lr()[0]
+        print(f'Epoch: [{epoch+1}/{N_EPOCHS}] | train loss: {train_loss:.4f} | val loss: {valid_loss:.4f} | LR: {current_lr:.6f}')
+        
+        scheduler.step()
 
-    torch.save(model.state_dict(), 'last_model_multivariate.pt')
+    model_path = os.path.join(exp_dir, 'last_model_multivariate.pt')
+    torch.save(model.state_dict(), model_path)
     print(f"Best model: ep={best_ep}, val loss={best_valid_loss:.4f}")
 
 

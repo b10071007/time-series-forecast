@@ -96,6 +96,7 @@ def main():
         data_path = os.path.join(data_dir, "0050_cycle_ma3.csv")
     elif data_type == "fake":
         data_path = os.path.join(data_dir, "fake_cycle_ma3.csv")
+    exp_dir = os.path.join(root_dir, "exp", data_type, "univariate_20221009")
         
     num_input=2
     num_output=2
@@ -138,6 +139,7 @@ def main():
 
     best_ep = 0
     best_valid_loss = float('inf')
+    os.makedirs(exp_dir, exist_ok=True)
 
     for epoch in range(N_EPOCHS):
         
@@ -153,11 +155,13 @@ def main():
         if valid_loss <= best_valid_loss:
             best_ep = epoch
             best_valid_loss = valid_loss
-            torch.save(model.state_dict(), 'best_model.pt')
+            model_path = os.path.join(exp_dir, 'best_model_univariate.pt')
+            torch.save(model.state_dict(), model_path)
         
         print(f'Epoch: [{epoch+1}/{N_EPOCHS}] | train loss: {train_loss:.4f} | val loss: {valid_loss:.4f}')
 
-    torch.save(model.state_dict(), 'last_model.pt')
+    model_path = os.path.join(exp_dir, 'last_model_univariate.pt')
+    torch.save(model.state_dict(), model_path)
     print(f"Best model: ep={best_ep}, val loss={best_valid_loss:.4f}")
 
 
